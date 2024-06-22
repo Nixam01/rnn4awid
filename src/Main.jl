@@ -9,6 +9,7 @@ include("Graph.jl")
 include("DataModule.jl")
 include("UtilsModule.jl")
 include("AccuracyModule.jl")
+include("GradientOptimizersModule.jl")
 
 using .DataModule, .UtilsModule, .AccuracyModule
 using Random, Plots
@@ -31,8 +32,6 @@ function update_weights!(graph::Vector, optimizer::GradientOptimizersModule.Grad
             if node.gradient != nothing
                 node.output .-= optimizer(node.gradient)
                 node.gradient .= 0
-            elseif node.gradient == nothing
-                node.output = nothing
             end
         end
     end
@@ -55,17 +54,15 @@ function main()
     dfd = Constant(UtilsModule.identity_deriv)
 
     wr = Variable(UtilsModule.glorot_uniform(64, 196))
-    br = Variable(UtilsModule.glorot_uniform(64, ))
     hwr = Variable(UtilsModule.glorot_uniform(64, 64))
+    br = Variable(UtilsModule.glorot_uniform(64, ))
     fr = Constant(tanh)
     dfr = Constant(UtilsModule.tanh_deriv)
 
     state0_value = zeros(Float32, 64, 100)
     state0 = Variable(state0_value)
 
-    optimizer = GradientOptimizersModule.Descent(1)
-
-    state0_value = zeros(Float32, 64, 100)
+    optimizer = GradientOptimizersModule.Descent(15e-3)
 
     r1 = rnn_layer(wr, hwr, state0, br, x1, fr, dfr)
     r2 = rnn_layer(wr, hwr, r1, br, x2, fr, dfr)
@@ -85,6 +82,7 @@ function main()
             x3.output = train_x_batched[batch][393:588,:]
             x4.output = train_x_batched[batch][589:end,:]
             result = forward!(graph)
+
             loss = AccuracyModule.loss(result, train_y_batched[batch])
             push!(batch_loss, loss)
             gradient = AccuracyModule.gradient(result, train_y_batched[batch]) ./ batch_size
@@ -93,13 +91,16 @@ function main()
         end
         state0.output = zeros(64, 10000)
         test_graph = topological_sort(d)
+
         x1.output = test_x[  1:196,:]
         x2.output = test_x[197:392,:]
         x3.output = test_x[393:588,:]
         x4.output = test_x[589:end,:]
         result = forward!(test_graph)
+
         loss = AccuracyModule.loss(result, test_y)
         acc = AccuracyModule.accuracy(result, test_y)
+
         @show epoch loss acc
     end
     plot(batch_loss, xlabel="Batch num", ylabel="loss", title="Loss over batches")

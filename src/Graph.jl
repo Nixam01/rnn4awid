@@ -1,9 +1,6 @@
 include("AccuracyModule.jl")
 using .AccuracyModule
-using LinearAlgebra
-using StaticArrays
-using Flux
-using NNlib
+using LinearAlgebra, StaticArrays
 import Statistics: mean
 # Types
 abstract type GraphNode end
@@ -216,10 +213,10 @@ backward(::BroadcastedOperator{typeof(max)}, x, y, g) =
         tuple(Jx' * g, Jy' * g)
     end
 
-dense_layer(x::GraphNode, w::GraphNode, b::GraphNode, f::Constant, df::Constant) = BroadcastedOperator(dense_layer, x, w, b, f, df)
-forward(::BroadcastedOperator{typeof(dense_layer)}, x, w, b, f, df) = f(w * x .+ b)
+dense_layer(x::GraphNode, w::GraphNode, b::GraphNode, f::Constant{T1}, df::Constant{T2}) where {T1 <: Function, T2 <: Function} = BroadcastedOperator(dense_layer, x, w, b, f, df)
+forward(::BroadcastedOperator{typeof(dense_layer)}, x, w, b, f, df) = f.(w * x .+ b)
 backward(::BroadcastedOperator{typeof(dense_layer)}, x, w, b, f, df, g) = let
-    g = df(w * x .+ b) .* g
+    g = df.(w * x .+ b) .* g
     tuple(w' * g, g * x', sum(g, dims=2))
 end
 
