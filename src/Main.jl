@@ -44,10 +44,10 @@ function main()
 
     epochs = 5
 
-    x1 = Variable([0.])
-    x2 = Variable([0.])
-    x3 = Variable([0.])
-    x4 = Variable([0.])
+    x1 = Variable(zeros(Float32, 1, 1))
+    x2 = Variable(zeros(Float32, 1, 1))
+    x3 = Variable(zeros(Float32, 1, 1))
+    x4 = Variable(zeros(Float32, 1, 1))
 
     wd = Variable(UtilsModule.glorot_uniform(10, 64))
     bd = Variable(UtilsModule.glorot_uniform(10, ))
@@ -60,7 +60,8 @@ function main()
     fr = Constant(tanh)
     dfr = Constant(UtilsModule.tanh_deriv)
 
-    state0 = Variable(nothing)
+    state0_value = zeros(Float32, 64, 100)
+    state0 = Variable(state0_value)
 
     optimizer = GradientOptimizersModule.Descent(1)
 
