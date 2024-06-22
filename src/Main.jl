@@ -11,7 +11,7 @@ include("UtilsModule.jl")
 include("AccuracyModule.jl")
 include("GradientOptimizersModule.jl")
 
-using .DataModule, .UtilsModule, .AccuracyModule
+using .DataModule, .UtilsModule, .AccuracyModule, .GradientOptimizersModule
 using Random, Plots
 
 function load_data(batch_size)

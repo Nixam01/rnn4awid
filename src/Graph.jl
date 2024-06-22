@@ -92,7 +92,9 @@ function backward!(order::Vector; seed=1.0)
 end
 
 function backward!(node::Constant) end
+
 function backward!(node::Variable) end
+
 function backward!(node::Operator)
     inputs = node.inputs
     gradients = backward(node, [input.output for input in inputs]..., node.gradient)

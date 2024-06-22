@@ -1,3 +1,16 @@
+"""
+# module datamodule
+
+- Julia version:
+- Author: marcin
+- Date: 2024-06-13
+
+# Examples
+
+```jldoctest
+julia>
+```
+"""
 module AccuracyModule
     using Statistics: mean
 
