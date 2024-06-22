@@ -2,7 +2,7 @@
 """
 # module accuracymodule
 
-- Julia version: 
+- Julia version:
 - Author: marcin
 - Date: 2024-06-13
 
