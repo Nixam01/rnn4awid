@@ -25,26 +25,15 @@ function load_data(batch_size)
     return train_x, train_y, train_x_batched, train_y_batched, test_x, test_y
 end
 
-function update_weights!(graph::Vector, lr::Float64, batch_size::Int64)
+function update_weights!(graph::Vector, optimizer::GradientOptimizersModule.GradientOptimizer)
     for node in graph
-        if isa(node, Variable) && (node.name == "states" || node.name == "x")
+        if isa(node, Variable)
+            if node.gradient != nothing
+                node.output .-= optimizer(node.gradient)
+                node.gradient .= 0
+            elseif node.gradient == nothing
                 node.output = nothing
-                node.gradient = nothing
-        elseif isa(node, Variable) && hasproperty(node, :gradient) && node.gradient != nothing
-#             println(string("Update ", node.name, " ", sum(node.output), " ", sum(node.gradient)))
-#                 println(string("Sum1: ", node.name, " gradient: ", sum(node.gradient), " output ", sum(node.output)))
-            node.gradient ./= batch_size
-            node.output .-= lr * node.gradient
-#                 println(string("Sum2: ", node.name, " gradient: ", sum(node.gradient), " output ", sum(node.output)))
-            node.gradient .= 0
-        end
-    end
-end
-
-function reset_state!(graph::Vector)
-    for node in graph
-        if isa(node, Variable) && hasproperty(node, :gradient) && node.gradient != nothing
-            node.gradient .= 0
+            end
         end
     end
 end
@@ -56,30 +45,31 @@ function main()
     epochs = 5
 
     x = Variable([0.], name="x")
-    y = Variable([0.], name="y")
 
-    wd = Variable(UtilsModule.glorot_uniform(10, 64), name="wd")
-    bd = Variable(UtilsModule.glorot_uniform(10, ), name="bd")
+    wd = Variable(UtilsModule.glorot_uniform(10, 64))
+    bd = Variable(UtilsModule.glorot_uniform(10, ))
+    fd = Constant(UtilsModule.identity)
+    dfd = Constant(UtilsModule.identity_deriv)
 
-    wr = Variable(UtilsModule.glorot_uniform(64, 196), name = "wr")
-    br = Variable(UtilsModule.glorot_uniform(64, ), name = "br")
-    hwr = Variable(UtilsModule.glorot_uniform(64, 64), name = "hwr")
+    wr = Variable(UtilsModule.glorot_uniform(64, 196))
+    br = Variable(UtilsModule.glorot_uniform(64, ))
+    hwr = Variable(UtilsModule.glorot_uniform(64, 64))
     states = Variable(nothing, name = "states")
+    fr = Constant(tanh)
+    dfr = Constant(UtilsModule.tanh_deriv)
 
-    r = rnn_layer(x, wr, br, hwr, states)
-    d = dense_layer(r, wd, bd)
+    optimizer = GradientOptimizersModule.Descent(15e-3)
+
+    r = rnn_layer(x, wr, br, hwr, states, fr, dfr)
+    d = dense_layer(r, wd, bd, fd, dfd)
     graph = topological_sort(d)
-
-    # RNN cell per 196 pixels and then sum the results?
 
     batch_loss = Float64[]
     println("Training")
     for epoch in 1:epochs
         batches = randperm(size(train_x_batched, 1))
         @time for batch in batches
-            reset_state!(graph)
             states.output = nothing
-            y.output = train_y_batched[batch]
             x.output = train_x_batched[batch][  1:196,:]
             forward!(graph)
 
@@ -92,18 +82,16 @@ function main()
             x.output = train_x_batched[batch][589:end,:]
             result = forward!(graph)
 
-            loss, acc, _ = AccuracyModule.loss_and_accuracy(result, train_y_batched[batch])
+            loss = AccuracyModule.loss(result, train_y_batched[batch])
             push!(batch_loss, loss)
-            gradient = AccuracyModule.get_gradient(result, y.output)
+            gradient = AccuracyModule.gradient(result, train_y_batched[batch]) ./ batch_size
             backward!(graph, seed=gradient)
-            # Update gradientu raczej na samym końcu jak w Fluxie
-            update_weights!(graph, 15e-3, batch_size)
+            update_weights!(graph, optimizer)
         end
+        states.output = nothing
         test_graph = topological_sort(d)
 
-        y.output = test_y
         x.output = test_x[  1:196,:]
-        reset_state!(test_graph)
         forward!(test_graph)
 
         x.output = test_x[197:392,:]
@@ -115,9 +103,9 @@ function main()
         x.output = test_x[589:end,:]
         result = forward!(test_graph)
 
-        loss, acc, _ = AccuracyModule.loss_and_accuracy(result, test_y)
+        loss = AccuracyModule.loss(result, test_y)
+        acc = AccuracyModule.accuracy(result, test_y)
 
-        states.output = zeros(Float32, size(x.output))
         @show epoch loss acc
     end
     plot(batch_loss, xlabel="Batch num", ylabel="loss", title="Loss over batches")
