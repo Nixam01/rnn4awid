@@ -1,6 +1,7 @@
 include("AccuracyModule.jl")
 using .AccuracyModule
 using LinearAlgebra
+using StaticArrays
 using Flux
 using NNlib
 import Statistics: mean
@@ -222,33 +223,37 @@ backward(::BroadcastedOperator{typeof(dense_layer)}, x, w, b, f, df, g) = let
     tuple(w' * g, g * x', sum(g, dims=2))
 end
 
-rnn_layer(x::GraphNode, w::GraphNode, b::GraphNode, hw::GraphNode, states::GraphNode, f::Constant, df::Constant) = BroadcastedOperator(rnn_layer, x, w, b, hw, states, f, df)
-forward(o::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, f, df) = let
+rnn_layer(x::GraphNode, w::GraphNode, b::GraphNode, hw::GraphNode, states::GraphNode, f::Constant{T1}, df::Constant{T2}, dw::GraphNode, dhw::GraphNode, db::GraphNode) where {T1 <: Function, T2 <: Function} = BroadcastedOperator(rnn_layer, x, w, b, hw, states, f, df, dw, dhw, db)
+forward(o::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, f, df, dw, dhw, db) = let
     if states == nothing
-        state = zeros(Float32, size(w, 1), size(x, 2))
         o.inputs[5].output = Matrix{Float32}[]
+        h = f.(w * x .+ b)
     else
-        state = last(states)
+        h = f.(w * x .+ hw * last(states) .+ b)
     end
-    h = f.(w * x .+ hw * state .+ b)
 
     push!(o.inputs[5].output, h)
     h
 end
-backward(::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, f, df, g) = let
+backward(::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, f, df, dw, dhw, db, g) = let
     prev_state = zeros(Float32, size(states[1]))
-    dw = zeros(Float32, size(w))
-    dhw = zeros(Float32, size(hw))
-    db = zeros(Float32, size(b))
+    prev_state = nothing
+    dw_c = dw
+    dhw_c = dhw
+    db_c = db
     for state in reverse(states)
+        if prev_state == nothing
+            dp = state
+        else
+            dp = state .+ hw * prev_state
+        end
         zL = w * x .+ hw * state .+ b
         dp = state .+ hw * prev_state
-        dt = df(zL) .* dp .* g
+        dt = df.(zL) .* dp .* g
         dw .+= dt * x'
-        dhw .+= dt * state'
-        db .+= mean(dt, dims=2)
-        prev_state = state
+        dw_c .+= dt * x'
+        dhw_c .+= dt * state'
+        db_c .+= mean(dt, dims=2)
     end
-
-    tuple(w' * g, dw, db, dhw, nothing)
+    tuple(w' * g, dw_c, db_c, dhw_c)
 end
