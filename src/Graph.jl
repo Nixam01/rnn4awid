@@ -237,47 +237,55 @@ forward(o::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, xes, f, 
     push!(o.inputs[6].output, x)
     h
 end
-backward(::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, xes, f, df, dw, dhw, db, g) = let
-    prev_state = zeros(Float32, size(states[1]))
-    prev_state = nothing
+backward(::BroadcastedOperator{typeof(rnn_layer)}, x, w, b, hw, states, xes, f, df, dw, dhw, db, g) = letprev_state = nothing
     dw_c = dw
     dhw_c = dhw
     db_c = db
-    x = xes[4]
-    state = states[4]
-    r = df.(w * x .+ hw * state .+ b)
-    g = g .* (hw * r)
-    dw_c .+= g * x'
-    dhw_c .+= g * state'
-    db_c .+= sum(g, dims=2)
+    z = Matrix{Float32}[]
 
-    x = xes[3]
-    state = states[3]
-    r = df.(w * x .+ hw * state .+ b)
-    g = g .* (hw * r)
-    dw_c .+= g * x'
-    dhw_c .+= g * state'
-    db_c .+= sum(g, dims=2)
+    for i in eachindex(states)
+        weighted_x = w * xes[i] .+ b
+        if i == 1
+            push!(z, df.(weighted_x))
+        else
+            push!(z, df.(weighted_x .+ hw * states[i - 1]))
+        end
+    end
 
-    x = xes[2]
-    state = states[2]
-    r = df.(w * x .+ hw * state .+ b)
-    g = g .* (hw * r)
-    dw_c .+= g * x'
-    dhw_c .+= g * state'
-    db_c .+= sum(g, dims=2)
+    _g = Matrix{Float32}[g]
+    for i in reverse(1:length(states) - 1)
+        push!(_g, last(_g) .* (hw * z[i + 1]))
+    end
 
-    x = xes[1]
-    state = states[1]
-    r = df.(w * x .+ hw * state .+ b)
-    g = g .* (hw * r)
-    dw_c .+= g * x'
-    dhw_c .+= g * state'
-    db_c .+= sum(g, dims=2)
+    prev_dw = nothing
+    prev_dhw = nothing
+
+    for i in eachindex(xes)
+        zg = _g[length(xes) - i + 1] .* z[i]
+        x = xes[i]
+        if i == 1
+            dw = zg * x'
+        else
+            dw = zg * x' .+ (hw * prev_dw)
+        end
+        if i > 1
+           state = states[i - 1]
+           dhw = zg * state'
+        elseif i > 2
+           state = states[i - 1]
+           dhw = (zg * state') .+ (hw .* prev_dhw)
+        end
+
+        dw_c .+= dw
+        dhw_c .+= dhw
+        db_c .+= sum(zg, dims=2)
+        prev_dw = dw
+        prev_dhw = dhw
+    end
 
     tuple(w' * g, dw_c, db_c, dhw_c)
 end
-end
+
 
 function clip!(arr)
     row, col = size(arr)
