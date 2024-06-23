@@ -1,6 +1,16 @@
+#=
+graph:
+- Julia version:
+- Author: marcin
+- Date: 2024-06-13
+=#
 include("AccuracyModule.jl")
 using .AccuracyModule
-using LinearAlgebra, StaticArrays
+using LinearAlgebra
+using StaticArrays
+using Flux
+using NNlib
+
 import Statistics: mean
 # Types
 abstract type GraphNode end
@@ -59,7 +69,7 @@ function topological_sort(head::GraphNode)
     return order
 end
 
-# Forward main
+# Forward
 reset!(node::Constant) = nothing
 reset!(node::Variable) = node.gradient = nothing
 reset!(node::Operator) = node.gradient = nothing
@@ -77,7 +87,7 @@ function forward!(order::Vector)
     return last(order).output
 end
 
-# Backward main
+# Backward
 update!(node::Constant, gradient) = nothing
 update!(node::GraphNode, gradient) = if isnothing(node.gradient)
     node.gradient = gradient else node.gradient .+= gradient
@@ -103,7 +113,7 @@ function backward!(node::Operator)
     end
 end
 
-# Default useful operators
+#Default operators
 import Base: ^, *, +, -, /, sin, max, min, log, sum
 
 +(x::GraphNode, y::GraphNode) = ScalarOperator(+, x, y)

@@ -1,9 +1,8 @@
-
 #=
 graphmain:
 - Julia version: 
 - Author: marcin
-- Date: 2024-06-13
+- Date: 2024-06-22
 =#
 include("Graph.jl")
 include("DataModule.jl")
@@ -51,13 +50,13 @@ function main()
     wd = Variable(UtilsModule.glorot_uniform(10, 64))
     bd = Variable(UtilsModule.glorot_uniform(10, ))
     fd = Constant(UtilsModule.identity)
-    dfd = Constant(UtilsModule.identity_deriv)
+    dfd = Constant(UtilsModule.identity_derivative)
 
     wr = Variable(UtilsModule.glorot_uniform(64, 196))
     hwr = Variable(UtilsModule.glorot_uniform(64, 64))
     br = Variable(UtilsModule.glorot_uniform(64, ))
     fr = Constant(tanh)
-    dfr = Constant(UtilsModule.tanh_deriv)
+    dfr = Constant(UtilsModule.tanh_derivative)
 
     state0_value = zeros(Float32, 64, 100)
     state0 = Variable(state0_value)
@@ -77,10 +76,15 @@ function main()
         batches = randperm(size(train_x_batched, 1))
         @time for batch in batches
             state0.output = state0_value
-            x1.output = train_x_batched[batch][  1:196,:]
+
+            x1.output = train_x_batched[batch][1:196,:]
+
             x2.output = train_x_batched[batch][197:392,:]
+
             x3.output = train_x_batched[batch][393:588,:]
+
             x4.output = train_x_batched[batch][589:end,:]
+
             result = forward!(graph)
 
             loss = AccuracyModule.loss(result, train_y_batched[batch])
@@ -93,9 +97,13 @@ function main()
         test_graph = topological_sort(d)
 
         x1.output = test_x[  1:196,:]
+
         x2.output = test_x[197:392,:]
+
         x3.output = test_x[393:588,:]
+
         x4.output = test_x[589:end,:]
+
         result = forward!(test_graph)
 
         loss = AccuracyModule.loss(result, test_y)

@@ -25,11 +25,11 @@ module UtilsModule
         return x
     end
 
-    function identity_deriv(x)
+    function identity_derivative(x)
         return 1
     end
 
-    function tanh_deriv(x)
+    function tanh_derivative(x)
         return 1 - tanh(x)^2
     end
 end
