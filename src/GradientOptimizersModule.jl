@@ -27,7 +27,7 @@ module GradientOptimizersModule
         else
             a.gradient_squared = a.gradient_squared .+ g.^2
         end
-        delta = a.learning_rate .* g ./ (sqrt.(a.gradient_squared) .+ 10e-12)
+        delta = a.learning_rate .* g ./ (sqrt.(a.gradient_squared) .+ 10e-11)
         return delta
     end
 
@@ -39,7 +39,7 @@ module GradientOptimizersModule
 
     function (r::RMSProp)(g)
        r.gradient_squared = r.gradient_squared .* r.decay_rate + g.^2 .* (1 - r.decay_rate)
-       delta = r.learning_rate .* g ./ (sqrt.(r.gradient_squared) .+ 10e-12)
+       delta = r.learning_rate .* g ./ (sqrt.(r.gradient_squared) .+ 10e-11)
         return delta
     end
 
