@@ -28,7 +28,7 @@ end
 function update_weights!(graph::Vector, optimizer::GradientOptimizersModule.GradientOptimizer)
     for node in graph
         if isa(node, Variable)
-            if node.gradient != nothing
+                if node.gradient != nothing
                 node.output .-= optimizer(node.gradient)
                 node.gradient .= 0
             end
