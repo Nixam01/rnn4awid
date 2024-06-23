@@ -5,7 +5,7 @@ Celem projektu jest napisanie własnej biblioteki do automatycznego różniczkow
 Należało zaimplementować automatyczne różniczkowanie z akumulacją gradientu wstecz (ang. reverse-mode automatic differentiation). Można zastosować zarówno podejście oparte o graf obliczeniowy lub dynamiczną generację kodu liczącego gradient.
 Na ocenę z projektu mają wpływ następujące elementy:
 
-1. efektywność implementacji opracowanej bibliteki,
+1. efektywność implementacji opracowanej biblioteki,
 2. spełnienie zadanej dokładności sieci (min. 85%)
 3. zakres i dokładność przeprowadzonych badań i testów
 4. ogólna ocena artykułu naukowego (spójność, kwestie edycyjne, stylistyczne etc.)
