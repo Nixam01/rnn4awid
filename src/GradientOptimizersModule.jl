@@ -22,11 +22,7 @@ module GradientOptimizersModule
     end
 
     function (a::Adagrad)(g)
-        if a.gradient_squared == nothing
-            a.gradient_squared = g.^2
-        else
-            a.gradient_squared = a.gradient_squared .+ g.^2
-        end
+        a.gradient_squared = a.gradient_squared .+ g.^2
         delta = a.learning_rate .* g ./ (sqrt.(a.gradient_squared) .+ 10e-12)
         return delta
     end
